@@ -6,8 +6,9 @@ No BGG API is used. You manage your own collection, run head-to-head comparisons
 
 ## What This App Does
 
-- Preloads games from `src/data/preloadedGames.json`
-- Merges preloaded data with your `localStorage` collection
+- Optionally preloads games from a local-only file: `src/data/preloadedGames.json`
+- Merges optional preloaded data with your `localStorage` collection
+- Starts with an empty collection when no preloaded file exists
 - Lets you add games manually (image URL optional)
 - Runs a comparison tournament to find Top X
 - Supports click, swipe, and keyboard arrows during battles
@@ -38,10 +39,11 @@ This significantly cuts user decisions once Top X stabilizes.
 ## Data Source and Persistence
 
 - Source order at startup:
-  1. Preloaded JSON (`src/data/preloadedGames.json`)
+  1. Optional preloaded JSON (`src/data/preloadedGames.json`, local-only)
   2. Local overrides and additions from `localStorage`
 - Storage key: `manual-boardgame-ranking-v1`
 - If you add a game without an image URL, a built-in fallback poster is used.
+- If no preloaded file exists, startup uses only `localStorage` (or empty state for first-time users).
 
 ## PNG Export
 
@@ -106,10 +108,10 @@ npm run preview
 
 - `src/App.tsx` - UI flow and interactions
 - `src/hooks/useTournament.ts` - ranking/tournament engine
-- `src/data/preloadedGames.json` - preloaded game list
+- `src/data/preloadedGames.json` - optional local preloaded game list (ignored by git)
 - `src/index.css` - global base styles and Tailwind layers
 
 ## Notes
 
 - This project is intentionally API-free.
-- You can replace the preloaded JSON with your own list at any time.
+- You can add your own local preloaded JSON at `src/data/preloadedGames.json` at any time.

@@ -3,7 +3,6 @@ import type { FormEvent, SyntheticEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeftRight, Download, Play, Plus, RotateCcw, Swords, Trash2, Undo2 } from 'lucide-react';
 import { toPng } from 'html-to-image';
-import preloadedGames from './data/preloadedGames.json';
 import {
   createInitialState,
   estimateTotalComparisons,
@@ -28,6 +27,9 @@ type PreloadedGame = {
 type AppPhase = 'setup' | 'battle' | 'results';
 
 const STORAGE_KEY = 'manual-boardgame-ranking-v1';
+const PRELOADED_GAMES_MODULES = import.meta.glob<{ default: unknown }>('./data/preloadedGames.json', {
+  eager: true,
+});
 
 const FALLBACK_POSTER = `data:image/svg+xml,${encodeURIComponent(
   `<svg xmlns='http://www.w3.org/2000/svg' width='600' height='400' viewBox='0 0 600 400'>
@@ -108,7 +110,9 @@ const readLocalGames = (): LocalGame[] => {
 };
 
 const readPreloadedGames = (): LocalGame[] => {
-  const parsed = preloadedGames as unknown;
+  // Local-only preload file is optional and can be absent in deployments.
+  const preloadedModule = Object.values(PRELOADED_GAMES_MODULES)[0];
+  const parsed = preloadedModule?.default;
   if (!Array.isArray(parsed)) return [];
 
   return parsed
@@ -264,7 +268,7 @@ function App() {
   };
 
   const resetToPreload = () => {
-    if (window.confirm('Reset to preloaded JSON games only?')) {
+    if (window.confirm('Reset to local preloaded games only? (If none exist, this will clear your collection.)')) {
       setGames(readPreloadedGames());
     }
   };
