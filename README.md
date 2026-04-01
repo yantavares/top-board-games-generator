@@ -1,4 +1,4 @@
-# BGG Tier List (Local-First)
+# Board Game Tier List
 
 A local-first board game tier-list app built with React, TypeScript, Vite, Framer Motion, and Tailwind.
 
