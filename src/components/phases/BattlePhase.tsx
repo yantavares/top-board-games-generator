@@ -31,6 +31,10 @@ export function BattlePhase({
   onChooseWinner,
   onImageError,
 }: BattlePhaseProps) {
+  const swipeThreshold = 45;
+  const velocityThreshold = 320;
+  const maxDragDistance = 96;
+  const selectedCardExitDistance = 160;
   const [winnerPreviewId, setWinnerPreviewId] = useState<string | null>(null);
   const chooseTimeoutRef = useRef<number | null>(null);
 
@@ -56,8 +60,6 @@ export function BattlePhase({
   const handleCardDragEnd = (winnerId: string, isLeftCard: boolean, info: PanInfo) => {
     if (isResolvingChoice || winnerPreviewId) return;
 
-    const swipeThreshold = 70;
-    const velocityThreshold = 500;
     const didSwipeTowardCard = isLeftCard
       ? info.offset.x <= -swipeThreshold || info.velocity.x <= -velocityThreshold
       : info.offset.x >= swipeThreshold || info.velocity.x >= velocityThreshold;
@@ -121,17 +123,19 @@ export function BattlePhase({
             {[currentMatchup.gameA, currentMatchup.gameB].map((game, index) => (
               <motion.article
                 key={game.id}
-                className="mx-auto grid w-full max-w-[180px] gap-2 rounded-2xl border border-slate-500/30 bg-slate-900/65 p-2.5 shadow-[0_18px_45px_rgba(2,6,23,0.35)] transition hover:-translate-y-0.5 sm:max-w-[210px] md:max-w-xs md:gap-3 md:p-3"
+                className="touch-pan-y will-change-transform mx-auto grid w-full max-w-[180px] gap-2 rounded-2xl border border-slate-500/30 bg-slate-900/65 p-2.5 shadow-[0_18px_45px_rgba(2,6,23,0.35)] transition-transform md:hover:-translate-y-0.5 sm:max-w-[210px] md:max-w-xs md:gap-3 md:p-3"
                 drag="x"
-                dragConstraints={index === 0 ? { left: -140, right: 0 } : { left: 0, right: 140 }}
-                dragElastic={0.18}
-                whileDrag={{ scale: 1.02 }}
+                dragDirectionLock
+                dragConstraints={index === 0 ? { left: -maxDragDistance, right: 0 } : { left: 0, right: maxDragDistance }}
+                dragElastic={0.08}
+                dragMomentum={false}
+                dragSnapToOrigin
                 onDragEnd={(_event, info) => {
                   handleCardDragEnd(game.id, index === 0, info);
                 }}
                 animate={
                   winnerPreviewId === game.id
-                    ? { x: index === 0 ? -240 : 240, opacity: 0, rotate: index === 0 ? -6 : 6 }
+                    ? { x: index === 0 ? -selectedCardExitDistance : selectedCardExitDistance, opacity: 0, rotate: index === 0 ? -4 : 4 }
                     : winnerPreviewId
                       ? { scale: 0.98, opacity: 0.85 }
                       : { x: 0, opacity: 1, rotate: 0, scale: 1 }
