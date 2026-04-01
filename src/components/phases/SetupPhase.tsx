@@ -108,10 +108,9 @@ export function SetupPhase({
     >
       <div>
         <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-300">Tier List Tournament</p>
-        <h1 className="mt-2 text-4xl font-black leading-none text-slate-50 md:text-5xl">Smart duels to find your Top X.</h1>
+        <h1 className="mt-2 text-4xl font-black leading-none text-slate-50 md:text-5xl">Smart duels to find your Favorite Board Games!</h1>
         <p className="mt-3 max-w-3xl text-sm text-slate-300">
-          Local preload JSON is optional. You can also import games from JSON below, then save a preload file for
-          src/data/preloadedGames.json.
+          We use binary-search insertion to find your Top X games with fewer comparisons.
         </p>
       </div>
 

@@ -1,6 +1,6 @@
 # Board Game Tier List
 
-<p align="center">
+<p>
   <a href="https://github.com/yantavares/top-board-games-generator/actions/workflows/deploy.yml">
     <img alt="Deploy Status" src="https://github.com/yantavares/top-board-games-generator/actions/workflows/deploy.yml/badge.svg" />
   </a>

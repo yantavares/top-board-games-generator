@@ -163,6 +163,21 @@ function App() {
           )}
         </AnimatePresence>
       </main>
+
+      <footer className="relative z-10 mx-auto mt-5 w-full max-w-6xl text-center text-xs text-slate-400">
+        <p>
+          Made with ❤️ by{' '}
+          <a
+            href="https://github.com/yantavares/top-board-games-generator"
+            target="_blank"
+            rel="noreferrer"
+            className="font-semibold text-slate-300 underline decoration-slate-500/70 underline-offset-4 transition hover:text-slate-100"
+          >
+            yantavares on GitHub
+          </a>
+          .
+        </p>
+      </footer>
     </div>
   );
 }
