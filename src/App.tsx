@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { FormEvent, SyntheticEvent } from 'react';
+import type { ChangeEvent, FormEvent, SyntheticEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeftRight, Download, Play, Plus, RotateCcw, Swords, Trash2, Undo2 } from 'lucide-react';
+import { ArrowLeftRight, Download, FileDown, Play, Plus, RotateCcw, Swords, Trash2, Undo2, Upload } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import {
   createInitialState,
@@ -21,7 +21,14 @@ type LocalGame = {
 
 type PreloadedGame = {
   name: string;
-  image: string;
+  image?: string;
+  imageUrl?: string;
+};
+
+type JsonImportGame = {
+  name?: unknown;
+  image?: unknown;
+  imageUrl?: unknown;
 };
 
 type AppPhase = 'setup' | 'battle' | 'results';
@@ -48,6 +55,10 @@ const FALLBACK_POSTER = `data:image/svg+xml,${encodeURIComponent(
 const createId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const normalizeGameName = (value: string) => value.trim().toLowerCase();
 const isValidHexColor = (value: string) => /^#[0-9a-fA-F]{6}$/.test(value);
+const shortLabel = (value: string, maxLength: number) => {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength).trimEnd()}...`;
+};
 
 const panelClass =
   'rounded-3xl border border-slate-500/30 bg-slate-900/70 shadow-[0_24px_60px_rgba(2,6,23,0.45)] backdrop-blur-xl';
@@ -76,6 +87,15 @@ const buildSeedId = (name: string, index: number) => {
     .replace(/(^-|-$)/g, '');
   return `seed-${index}-${slug || 'game'}`;
 };
+
+const JSON_FORMAT_EXAMPLE = `[
+  {
+    "name": "Brass: Birmingham"
+  },
+  {
+    "name": "Spirit Island"
+  }
+]`;
 
 const readLocalGames = (): LocalGame[] => {
   if (typeof window === 'undefined') return [];
@@ -119,15 +139,24 @@ const readPreloadedGames = (): LocalGame[] => {
     .filter((item): item is PreloadedGame => {
       if (!item || typeof item !== 'object') return false;
       const candidate = item as Partial<PreloadedGame>;
-      return typeof candidate.name === 'string' && typeof candidate.image === 'string';
+      return typeof candidate.name === 'string';
     })
-    .map((item, index) => ({
-      id: buildSeedId(item.name, index),
-      name: item.name.trim(),
-      imageUrl: item.image.trim(),
-      createdAt: 0,
-    }))
-    .filter((item) => item.name && item.imageUrl);
+    .map((item, index) => {
+      const imageSource =
+        typeof item.image === 'string'
+          ? item.image.trim()
+          : typeof item.imageUrl === 'string'
+            ? item.imageUrl.trim()
+            : '';
+
+      return {
+        id: buildSeedId(item.name, index),
+        name: item.name.trim(),
+        imageUrl: imageSource || FALLBACK_POSTER,
+        createdAt: 0,
+      };
+    })
+    .filter((item) => item.name);
 };
 
 const readInitialGames = (): LocalGame[] => {
@@ -144,6 +173,78 @@ const readInitialGames = (): LocalGame[] => {
   return [...mergedSeeded, ...localOnly];
 };
 
+const parseGamesJson = (rawJson: string): LocalGame[] => {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(rawJson);
+  } catch {
+    throw new Error('Invalid JSON syntax. Check commas, quotes, and brackets.');
+  }
+
+  if (!Array.isArray(parsed)) {
+    throw new Error('JSON root must be an array of game objects.');
+  }
+
+  const now = Date.now();
+  const imported = parsed
+    .filter((item): item is JsonImportGame => !!item && typeof item === 'object')
+    .map((item, index) => {
+      const name = typeof item.name === 'string' ? item.name.trim() : '';
+      const imageSource =
+        typeof item.image === 'string'
+          ? item.image.trim()
+          : typeof item.imageUrl === 'string'
+            ? item.imageUrl.trim()
+            : '';
+
+      if (!name) return null;
+
+      return {
+        id: createId(),
+        name,
+        imageUrl: imageSource || FALLBACK_POSTER,
+        createdAt: now + index,
+      };
+    })
+    .filter((item): item is LocalGame => item !== null);
+
+  if (!imported.length) {
+    throw new Error('No valid entries found. Each game needs at least a "name" field.');
+  }
+
+  const deduped = new Map<string, LocalGame>();
+  imported.forEach((game) => {
+    deduped.set(normalizeGameName(game.name), game);
+  });
+
+  return [...deduped.values()];
+};
+
+const mergeGamesByName = (existing: LocalGame[], incoming: LocalGame[]): LocalGame[] => {
+  const incomingByName = new Map(incoming.map((game) => [normalizeGameName(game.name), game]));
+  const mergedExisting = existing.map((game) => incomingByName.get(normalizeGameName(game.name)) ?? game);
+  const existingNames = new Set(mergedExisting.map((game) => normalizeGameName(game.name)));
+  const additions = incoming.filter((game) => {
+    const key = normalizeGameName(game.name);
+    if (existingNames.has(key)) return false;
+    existingNames.add(key);
+    return true;
+  });
+
+  return [...mergedExisting, ...additions];
+};
+
+const buildPreloadJson = (collection: LocalGame[]) =>
+  JSON.stringify(
+    collection.map((game) => ({
+      name: game.name,
+      image: game.imageUrl,
+    })),
+    null,
+    2,
+  );
+
 const cloneTournamentState = (state: TournamentState): TournamentState => ({
   ...state,
   pool: state.pool.map((game) => ({ ...game })),
@@ -156,6 +257,10 @@ function App() {
   const [name, setName] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [formError, setFormError] = useState('');
+  const [jsonText, setJsonText] = useState('');
+  const [jsonError, setJsonError] = useState('');
+  const [jsonNotice, setJsonNotice] = useState('');
+  const [isJsonPanelOpen, setIsJsonPanelOpen] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [targetTopX, setTargetTopX] = useState(10);
   const [targetTopXInput, setTargetTopXInput] = useState('10');
@@ -265,6 +370,98 @@ function App() {
     if (window.confirm('Remove all games from your collection?')) {
       setGames([]);
     }
+  };
+
+  const importGamesFromJson = () => {
+    setJsonError('');
+    setJsonNotice('');
+
+    const trimmed = jsonText.trim();
+    if (!trimmed) {
+      setJsonError('Paste JSON first, then click Import JSON.');
+      return;
+    }
+
+    try {
+      const importedGames = parseGamesJson(trimmed);
+      setGames((previous) => mergeGamesByName(previous, importedGames));
+      setJsonNotice(`Imported ${importedGames.length} game${importedGames.length === 1 ? '' : 's'} from JSON.`);
+      setJsonText('');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not import JSON.';
+      setJsonError(message);
+    }
+  };
+
+  const onJsonFileSelected = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      setJsonText(text);
+      setJsonError('');
+      setJsonNotice(`Loaded ${file.name}. Review it, then click Import JSON.`);
+    } catch {
+      setJsonError('Could not read that file.');
+      setJsonNotice('');
+    } finally {
+      event.target.value = '';
+    }
+  };
+
+  const savePreloadJson = async () => {
+    setJsonError('');
+    setJsonNotice('');
+
+    if (!games.length) {
+      setJsonError('Add at least one game before saving preload JSON.');
+      return;
+    }
+
+    const content = buildPreloadJson(games);
+    const pickerWindow = window as Window & {
+      showSaveFilePicker?: (options?: {
+        suggestedName?: string;
+        types?: Array<{ description: string; accept: Record<string, string[]> }>;
+      }) => Promise<{
+        createWritable: () => Promise<{
+          write: (data: string) => Promise<void>;
+          close: () => Promise<void>;
+        }>;
+      }>;
+    };
+
+    if (typeof pickerWindow.showSaveFilePicker === 'function') {
+      try {
+        const handle = await pickerWindow.showSaveFilePicker({
+          suggestedName: 'preloadedGames.json',
+          types: [
+            {
+              description: 'JSON file',
+              accept: { 'application/json': ['.json'] },
+            },
+          ],
+        });
+
+        const writable = await handle.createWritable();
+        await writable.write(content);
+        await writable.close();
+        setJsonNotice('Preload JSON saved. Place it at src/data/preloadedGames.json.');
+        return;
+      } catch {
+        // Falls back to a browser download if picker is canceled or blocked.
+      }
+    }
+
+    const blob = new Blob([content], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'preloadedGames.json';
+    anchor.click();
+    URL.revokeObjectURL(url);
+    setJsonNotice('Downloaded preloadedGames.json. Move it to src/data/preloadedGames.json.');
   };
 
   const resetToPreload = () => {
@@ -453,8 +650,8 @@ function App() {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-300">Tier List Tournament</p>
                 <h1 className="mt-2 text-4xl font-black leading-none text-slate-50 md:text-5xl">Smart duels to find your Top X.</h1>
                 <p className="mt-3 max-w-3xl text-sm text-slate-300">
-                  JSON preload is loaded first, then local storage is merged. Matchups use binary search insertion,
-                  minimizing the number of comparisons needed.
+                  Local preload JSON is optional. You can also import games from JSON below, then save a preload file
+                  for src/data/preloadedGames.json.
                 </p>
               </div>
 
@@ -504,6 +701,100 @@ function App() {
                       </motion.p>
                     )}
                   </AnimatePresence>
+
+                  <div className="mt-4">
+                    <button type="button" className={ghostButtonClass} onClick={() => setIsJsonPanelOpen((previous) => !previous)}>
+                      <Upload size={16} />
+                      {isJsonPanelOpen ? 'Hide JSON import' : 'Import JSON'}
+                    </button>
+
+                    <AnimatePresence initial={false}>
+                      {isJsonPanelOpen && (
+                        <motion.div
+                          className="mt-2 rounded-2xl border border-slate-500/25 bg-slate-950/40 p-3"
+                          initial={{ opacity: 0, y: -8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                        >
+                          <h3 className="text-base font-bold text-slate-100">Import from JSON</h3>
+
+                          <textarea
+                            className={`${inputClass} mt-2 min-h-28 font-mono text-xs`}
+                            value={jsonText}
+                            onChange={(event) => setJsonText(event.target.value)}
+                            placeholder={JSON_FORMAT_EXAMPLE}
+                          />
+
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <button type="button" className={ghostButtonClass} onClick={importGamesFromJson}>
+                              <Upload size={16} />
+                              Import JSON
+                            </button>
+
+                            <label htmlFor="json-file-upload" className={ghostButtonClass}>
+                              <Upload size={16} />
+                              Load file
+                            </label>
+                            <input
+                              id="json-file-upload"
+                              type="file"
+                              accept="application/json,.json"
+                              className="hidden"
+                              onChange={(event) => {
+                                void onJsonFileSelected(event);
+                              }}
+                            />
+
+                            <button
+                              type="button"
+                              className={ghostButtonClass}
+                              onClick={() => void savePreloadJson()}
+                              disabled={!games.length}
+                            >
+                              <FileDown size={16} />
+                              Save preload JSON
+                            </button>
+                          </div>
+
+                          <AnimatePresence>
+                            {jsonError && (
+                              <motion.p
+                                className="mt-2 text-sm text-rose-300"
+                                initial={{ opacity: 0, y: -8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -8 }}
+                              >
+                                {jsonError}
+                              </motion.p>
+                            )}
+                          </AnimatePresence>
+
+                          <AnimatePresence>
+                            {jsonNotice && (
+                              <motion.p
+                                className="mt-2 text-sm text-emerald-300"
+                                initial={{ opacity: 0, y: -8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -8 }}
+                              >
+                                {jsonNotice}
+                              </motion.p>
+                            )}
+                          </AnimatePresence>
+
+                          <div className="mt-2 rounded-xl border border-slate-500/25 bg-slate-900/55 p-3">
+                            <p className="text-xs text-slate-200">Expected JSON format (array of objects):</p>
+                            <pre className="mt-2 overflow-auto rounded-lg border border-slate-500/25 bg-slate-950/60 p-2 text-[11px] text-cyan-100">
+                              {JSON_FORMAT_EXAMPLE}
+                            </pre>
+                            <p className="mt-2 text-xs text-slate-300">
+                              Required field: name. image or imageUrl is optional.
+                            </p>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
 
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button type="button" className={ghostButtonClass} onClick={resetToPreload}>
@@ -575,7 +866,7 @@ function App() {
                 {games.length === 0 ? (
                   <div className="mt-3 grid place-content-center rounded-2xl border border-dashed border-slate-500/40 bg-slate-900/35 p-6 text-center">
                     <h3 className="text-lg font-semibold text-slate-100">No games in collection.</h3>
-                    <p className="mt-1 text-sm text-slate-300">Add games or reset to preload to begin.</p>
+                    <p className="mt-1 text-sm text-slate-300">Add manually, import JSON, or reset preload to begin.</p>
                   </div>
                 ) : (
                   <ul className="mt-3 grid max-h-[360px] grid-cols-1 gap-2 overflow-auto md:grid-cols-2 xl:grid-cols-3">
@@ -590,7 +881,7 @@ function App() {
                           onError={onImageError}
                           className="h-[46px] w-[46px] rounded-lg object-cover"
                         />
-                        <span className="truncate text-sm text-slate-100">{game.name}</span>
+                        <span className="truncate text-sm text-slate-100">{shortLabel(game.name, 28)}</span>
                         <button
                           type="button"
                           onClick={() => removeGame(game.id)}
@@ -675,9 +966,9 @@ function App() {
                           alt={game.name}
                           onError={onImageError}
                           draggable={false}
-                          className="mx-auto h-64 w-full max-w-[220px] rounded-xl object-cover"
+                          className="mx-auto h-48 w-full max-w-[170px] rounded-xl object-cover sm:h-56 sm:max-w-[200px] md:h-64 md:max-w-[220px]"
                         />
-                        <h2 className="text-center text-xl font-bold text-slate-50">{game.name}</h2>
+                        <h2 className="text-center text-xl font-bold text-slate-50">{shortLabel(game.name, 24)}</h2>
                         <p className="text-center text-xs text-slate-300">
                           {index === 0 ? 'Left side / Arrow Left' : 'Right side / Arrow Right'}
                         </p>
@@ -824,7 +1115,7 @@ function App() {
                         className="h-[66px] w-[66px] rounded-lg object-cover"
                       />
                       <div>
-                        <h3 className="text-base font-bold text-slate-50">{game.name}</h3>
+                        <h3 className="text-base font-bold text-slate-50">{shortLabel(game.name, 26)}</h3>
                         <p className="text-xs text-slate-300">Position decided via binary insertion tournament</p>
                       </div>
                     </li>

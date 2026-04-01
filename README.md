@@ -1,67 +1,98 @@
 # Board Game Tier List
 
-A local-first board game tier-list app built with React, TypeScript, Vite, Framer Motion, and Tailwind.
+<p align="center">
+  <a href="https://github.com/yantavares/top-board-games-generator/actions/workflows/deploy.yml">
+    <img alt="Deploy Status" src="https://github.com/yantavares/top-board-games-generator/actions/workflows/deploy.yml/badge.svg" />
+  </a>
+  <img alt="Stars" src="https://img.shields.io/github/stars/yantavares/top-board-games-generator?style=for-the-badge" />
+  <img alt="Repo Size" src="https://img.shields.io/github/repo-size/yantavares/top-board-games-generator?style=for-the-badge" />
+  <img alt="Built with Vite" src="https://img.shields.io/badge/Built%20With-Vite-646CFF?style=for-the-badge" />
+</p>
 
-No BGG API is used. You manage your own collection, run head-to-head comparisons, and generate a Top X ranking.
+Local-first ranking app for board games.
 
-## What This App Does
+## Highlights
 
-- Optionally preloads games from a local-only file: `src/data/preloadedGames.json`
-- Merges optional preloaded data with your `localStorage` collection
-- Starts with an empty collection when no preloaded file exists
-- Lets you add games manually (image URL optional)
-- Runs a comparison tournament to find Top X
-- Supports click, swipe, and keyboard arrows during battles
-- Lets you customize result name + background color
-- Exports results as a PNG image
+- 🎯 Build your own collection and rank a Top X with smart head-to-head matchups.
+- 🧩 Add games manually or import them from JSON.
+- 💾 Persist collection in local storage automatically.
+- 🗂️ Export your current collection as a preload JSON file.
+- 🖼️ Export final ranking cards as PNG.
 
-## Ranking Logic (Smart Top X)
+## Quick Start
 
-The ranking engine is optimized to reduce unnecessary comparisons.
+1. Install dependencies:
 
-1. While Top X is still filling:
-   - New candidates are inserted via binary-search-style comparisons.
-2. After Top X is full:
-   - Candidate is first compared against the current X-th ranked game.
-   - If candidate loses, it is discarded immediately.
-   - If candidate wins, only then it is compared upward to find final position.
+```bash
+npm install
+```
 
-This significantly cuts user decisions once Top X stabilizes.
+2. Start dev server:
 
-## Controls During Battle
+```bash
+npm run dev
+```
 
-- Click `Pick this one` on either card
-- Swipe left/right on the matchup area
-- Press keyboard arrows:
-  - Left Arrow selects left card
-  - Right Arrow selects right card
+3. Build production bundle:
 
-## Data Source and Persistence
+```bash
+npm run build
+```
 
-- Source order at startup:
-  1. Optional preloaded JSON (`src/data/preloadedGames.json`, local-only)
-  2. Local overrides and additions from `localStorage`
-- Storage key: `manual-boardgame-ranking-v1`
-- If you add a game without an image URL, a built-in fallback poster is used.
-- If no preloaded file exists, startup uses only `localStorage` (or empty state for first-time users).
+## JSON Import In App
 
-## PNG Export
+Use the Setup screen option Import from JSON.
 
-On the results screen you can:
+1. Paste JSON in the text area or click Load file.
+2. Click Import JSON.
+3. Optionally click Save preload JSON to generate preloadedGames.json.
 
-- Set a custom result name
-- Pick a custom background color
-- Export the rendered result card as PNG
+If your browser supports native file saving, save directly to:
 
-The exported image includes:
+- src/data/preloadedGames.json
 
-- Title (your result name)
-- Top list with rank, image, and name
-- Your chosen background styling
+If native saving is not available, the app downloads preloadedGames.json.
+Move that file into src/data/preloadedGames.json.
 
-Note: external image hosts may block canvas capture (CORS), which can affect export in some cases.
+## JSON Format
 
-## Tech Stack
+Expected format is an array of objects:
+
+```json
+[
+  {
+    "name": "Brass: Birmingham"
+  },
+  {
+    "name": "Spirit Island",
+    "image": "https://example.com/spirit-island.jpg"
+  }
+]
+```
+
+Rules:
+
+- name is required.
+- image is optional.
+- imageUrl is also accepted as an alternative key.
+- if no image is provided, the app uses a built-in fallback poster.
+
+## Data Loading Order
+
+At startup, the app loads in this order:
+
+1. Optional local preload file at src/data/preloadedGames.json
+2. Local storage overrides and additions
+
+Local storage key:
+
+- manual-boardgame-ranking-v1
+
+## Deployment
+
+- 🚀 GitHub Pages via [deploy workflow](.github/workflows/deploy.yml)
+
+## Stack
 
 - React 19
 - TypeScript
@@ -69,49 +100,4 @@ Note: external image hosts may block canvas capture (CORS), which can affect exp
 - Tailwind CSS
 - Framer Motion
 - Lucide React
-- html-to-image (for PNG export)
-
-## Getting Started
-
-### 1. Install dependencies
-
-```bash
-npm install
-```
-
-### 2. Run development server
-
-```bash
-npm run dev
-```
-
-### 3. Build for production
-
-```bash
-npm run build
-```
-
-### 4. Preview production build
-
-```bash
-npm run preview
-```
-
-## Scripts
-
-- `npm run dev` - start Vite dev server
-- `npm run build` - type-check and build production bundle
-- `npm run lint` - run ESLint
-- `npm run preview` - preview production build locally
-
-## Main Files
-
-- `src/App.tsx` - UI flow and interactions
-- `src/hooks/useTournament.ts` - ranking/tournament engine
-- `src/data/preloadedGames.json` - optional local preloaded game list (ignored by git)
-- `src/index.css` - global base styles and Tailwind layers
-
-## Notes
-
-- This project is intentionally API-free.
-- You can add your own local preloaded JSON at `src/data/preloadedGames.json` at any time.
+- html-to-image
