@@ -4,9 +4,6 @@
   <a href="https://github.com/yantavares/top-board-games-generator/actions/workflows/deploy.yml">
     <img alt="Deploy Status" src="https://github.com/yantavares/top-board-games-generator/actions/workflows/deploy.yml/badge.svg" />
   </a>
-  <img alt="Stars" src="https://img.shields.io/github/stars/yantavares/top-board-games-generator?style=for-the-badge" />
-  <img alt="Repo Size" src="https://img.shields.io/github/repo-size/yantavares/top-board-games-generator?style=for-the-badge" />
-  <img alt="Built with Vite" src="https://img.shields.io/badge/Built%20With-Vite-646CFF?style=for-the-badge" />
 </p>
 
 Local-first ranking app for board games.
