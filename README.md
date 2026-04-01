@@ -1,4 +1,4 @@
-# Board Game Tier List
+# Top Board Game List Generator
 
 <p>
   <a href="https://github.com/yantavares/top-board-games-generator/actions/workflows/deploy.yml">
