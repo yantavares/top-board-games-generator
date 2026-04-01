@@ -1,0 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Bebas+Neue&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-body: 'Outfit', sans-serif;
+    --font-heading: 'Bebas Neue', sans-serif;
+    --bg-deep: #020617;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-body);
+    color: #f8fafc;
+    background:
+      radial-gradient(circle at 14% 9%, rgba(249, 115, 22, 0.16), transparent 34%),
+      radial-gradient(circle at 88% 21%, rgba(45, 212, 191, 0.14), transparent 33%),
+      var(--bg-deep);
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  button,
+  input {
+    font: inherit;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+}
